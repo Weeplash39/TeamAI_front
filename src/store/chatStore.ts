@@ -8,7 +8,6 @@ interface ChatStore {
   selectedAgent: AgentId;
   selectedMode: WorkMode;
 
-  // Actions
   addMessage: (message: ChatMessage) => void;
   updateLastMessage: (content: string) => void;
   clearMessages: () => void;
@@ -22,33 +21,54 @@ export const useChatStore = create<ChatStore>((set) => ({
   messages: [],
   isStreaming: false,
   isConnected: false,
-  selectedAgent: "cto",
-  selectedMode: "consultation",
+  selectedAgent: "cto", // ⚠️ Valeur par défaut
+  selectedMode: "consultation", // ⚠️ Valeur par défaut
 
-  addMessage: (message) =>
+  addMessage: (message) => {
+    console.log("➕ Store: Ajout message", message.type, message.id);
     set((state) => ({
       messages: [...state.messages, message],
-    })),
+    }));
+  },
 
-  updateLastMessage: (content) =>
+  updateLastMessage: (content) => {
     set((state) => {
       const messages = [...state.messages];
+
+      if (messages.length === 0) {
+        return state;
+      }
+
       const lastMessage = messages[messages.length - 1];
 
       if (lastMessage && lastMessage.type === "agent") {
         lastMessage.content = content;
+        lastMessage.streaming = true;
       }
 
       return { messages };
-    }),
+    });
+  },
 
   clearMessages: () => set({ messages: [] }),
 
-  setStreaming: (isStreaming) => set({ isStreaming }),
+  setStreaming: (isStreaming) => {
+    console.log("🎬 Store: setStreaming:", isStreaming);
+    set({ isStreaming });
+  },
 
-  setConnected: (isConnected) => set({ isConnected }),
+  setConnected: (isConnected) => {
+    console.log("🔌 Store: setConnected:", isConnected);
+    set({ isConnected });
+  },
 
-  setSelectedAgent: (agent) => set({ selectedAgent: agent }),
+  setSelectedAgent: (agent) => {
+    console.log("🎯 Store: setSelectedAgent:", agent);
+    set({ selectedAgent: agent });
+  },
 
-  setSelectedMode: (mode) => set({ selectedMode: mode }),
+  setSelectedMode: (mode) => {
+    console.log("🎭 Store: setSelectedMode:", mode);
+    set({ selectedMode: mode });
+  },
 }));
