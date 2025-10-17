@@ -2,73 +2,93 @@ import { create } from "zustand";
 import type { ChatMessage, AgentId, WorkMode } from "../types";
 
 interface ChatStore {
-  messages: ChatMessage[];
-  isStreaming: boolean;
-  isConnected: boolean;
-  selectedAgent: AgentId;
+  // Messages par projet
+  messagesByProject: Record<string, ChatMessage[]>;
+
+  // État de streaming par projet
+  streamingState: Record<string, boolean>;
+
+  // Sélections globales (conservées entre projets)
+  selectedAgent: AgentId | "auto";
   selectedMode: WorkMode;
 
-  addMessage: (message: ChatMessage) => void;
-  updateLastMessage: (content: string) => void;
-  clearMessages: () => void;
-  setStreaming: (isStreaming: boolean) => void;
-  setConnected: (isConnected: boolean) => void;
-  setSelectedAgent: (agent: AgentId) => void;
+  // Actions pour les messages
+  addMessage: (projectId: string, message: ChatMessage) => void;
+  updateLastMessage: (projectId: string, content: string) => void;
+  clearMessages: (projectId: string) => void;
+  getMessages: (projectId: string) => ChatMessage[];
+
+  // Actions pour l'état
+  setStreaming: (projectId: string, streaming: boolean) => void;
+  isStreaming: (projectId: string) => boolean;
+
+  // Actions pour les sélections
+  setSelectedAgent: (agent: AgentId | "auto") => void;
   setSelectedMode: (mode: WorkMode) => void;
 }
 
-export const useChatStore = create<ChatStore>((set) => ({
-  messages: [],
-  isStreaming: false,
-  isConnected: false,
-  selectedAgent: "cto", // ⚠️ Valeur par défaut
-  selectedMode: "consultation", // ⚠️ Valeur par défaut
+export const useChatStore = create<ChatStore>((set, get) => ({
+  // État initial
+  messagesByProject: {},
+  streamingState: {},
+  selectedAgent: "auto",
+  selectedMode: "consultation",
 
-  addMessage: (message) => {
-    console.log("➕ Store: Ajout message", message.type, message.id);
+  // Messages
+  addMessage: (projectId, message) =>
     set((state) => ({
-      messages: [...state.messages, message],
-    }));
-  },
+      messagesByProject: {
+        ...state.messagesByProject,
+        [projectId]: [...(state.messagesByProject[projectId] || []), message],
+      },
+    })),
 
-  updateLastMessage: (content) => {
+  updateLastMessage: (projectId, content) =>
     set((state) => {
-      const messages = [...state.messages];
+      const messages = state.messagesByProject[projectId] || [];
+      if (messages.length === 0) return state;
 
-      if (messages.length === 0) {
-        return state;
-      }
+      const updatedMessages = [...messages];
+      const lastMessage = updatedMessages[updatedMessages.length - 1];
+      updatedMessages[updatedMessages.length - 1] = {
+        ...lastMessage,
+        content: content,
+      };
 
-      const lastMessage = messages[messages.length - 1];
+      return {
+        messagesByProject: {
+          ...state.messagesByProject,
+          [projectId]: updatedMessages,
+        },
+      };
+    }),
 
-      if (lastMessage && lastMessage.type === "agent") {
-        lastMessage.content = content;
-        lastMessage.streaming = true;
-      }
+  clearMessages: (projectId) =>
+    set((state) => ({
+      messagesByProject: {
+        ...state.messagesByProject,
+        [projectId]: [],
+      },
+    })),
 
-      return { messages };
-    });
+  getMessages: (projectId) => {
+    return get().messagesByProject[projectId] || [];
   },
 
-  clearMessages: () => set({ messages: [] }),
+  // État de streaming
+  setStreaming: (projectId, streaming) =>
+    set((state) => ({
+      streamingState: {
+        ...state.streamingState,
+        [projectId]: streaming,
+      },
+    })),
 
-  setStreaming: (isStreaming) => {
-    console.log("🎬 Store: setStreaming:", isStreaming);
-    set({ isStreaming });
+  isStreaming: (projectId) => {
+    return get().streamingState[projectId] || false;
   },
 
-  setConnected: (isConnected) => {
-    console.log("🔌 Store: setConnected:", isConnected);
-    set({ isConnected });
-  },
-
-  setSelectedAgent: (agent) => {
-    console.log("🎯 Store: setSelectedAgent:", agent);
-    set({ selectedAgent: agent });
-  },
-
-  setSelectedMode: (mode) => {
-    console.log("🎭 Store: setSelectedMode:", mode);
-    set({ selectedMode: mode });
-  },
+  // Sélections
+  setSelectedAgent: (agent) => set({ selectedAgent: agent }),
+  setSelectedMode: (mode) => set({ selectedMode: mode }),
 }));
